@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.bonitasoft.example</groupId>
-    <artifactId>rest-api-sql-datasource</artifactId>
+    <groupId>org.bonitasoft.test</groupId>
+    <artifactId>vacation-resquest-api-extension</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <properties>
-        <bonita.version>7.0.1</bonita.version>
+        <bonita.version>7.1.2</bonita.version>
         <groovy.version>1.8.6-01</groovy.version>
     </properties>
     <repositories>
@@ -49,6 +49,11 @@
             <version>0.7-groovy-1.8</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-all</artifactId>
+            <version>1.8.6</version>
+        </dependency>
         <dependency> <!-- enables mocking of classes (in addition to interfaces) -->
             <groupId>cglib</groupId>
             <artifactId>cglib-nodep</artifactId>
@@ -60,6 +65,26 @@
             <artifactId>objenesis</artifactId>
             <version>1.2</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.persistence</groupId>
+            <artifactId>persistence-api</artifactId>
+            <version>1.0.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bonitasoft.restapi</groupId>
+            <artifactId>bdm-dao</artifactId>
+            <version>1.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/bdm-dao.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>org.bonitasoft.restapi</groupId>
+            <artifactId>bdm-model</artifactId>
+            <version>1.0.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/lib/bdm-model.jar</systemPath>
         </dependency>
     </dependencies>
 

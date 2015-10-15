@@ -1,44 +1,48 @@
+import bizdata.VacationRequest
+import bizdata.VacationRequestDAOImpl
 import groovy.json.JsonBuilder
-import groovy.sql.Sql
-import org.bonitasoft.console.common.server.page.*
+import org.bonitasoft.console.common.server.page.PageContext
+import org.bonitasoft.console.common.server.page.PageResourceProvider
+import org.bonitasoft.console.common.server.page.RestApiController
+import org.bonitasoft.console.common.server.page.RestApiResponse
+import org.bonitasoft.console.common.server.page.RestApiResponseBuilder
+import org.bonitasoft.console.common.server.page.RestApiUtil
+import org.bonitasoft.engine.api.TenantAPIAccessor
+import org.bonitasoft.engine.bpm.flownode.HumanTaskInstance
+import org.bonitasoft.engine.business.data.SimpleBusinessDataReference
+import org.bonitasoft.engine.session.APISession
 
-import javax.naming.Context
-import javax.naming.InitialContext
 import javax.servlet.http.HttpServletRequest
-import javax.servlet.http.HttpServletResponse
-import javax.sql.DataSource
-import java.util.logging.Logger
+
+import static org.bonitasoft.engine.bpm.flownode.ActivityInstanceCriterion.PRIORITY_DESC
 
 class Index implements RestApiController {
 
     RestApiResponse doHandle(HttpServletRequest request, PageResourceProvider pageResourceProvider, PageContext pageContext, RestApiResponseBuilder apiResponseBuilder, RestApiUtil restApiUtil) {
-        String queryId = request.getParameter "queryId"
-        if (queryId == null) {
-            return buildErrorResponse(apiResponseBuilder, "the parameter queryId is missing",restApiUtil.logger)
+
+
+
+        def session = pageContext.getApiSession()
+
+        def processAPI = TenantAPIAccessor.getProcessAPI(session)
+        def tasks = processAPI.getPendingHumanTaskInstances(session.getUserId(), 0, 100, PRIORITY_DESC)
+        tasks.addAll(processAPI.getAssignedHumanTaskInstances(session.getUserId(), 0, 100, PRIORITY_DESC))
+
+        def results = []
+        tasks.each { task ->
+            results.add([taskId: task.getId(), vacationRequest: getVacationRequest(task, session)])
         }
-        String query = getQuery queryId, pageResourceProvider
-        if (query == null) {
-            return buildErrorResponse(apiResponseBuilder, "the queryId does not refer to an existing query", restApiUtil.logger)
-        }
-        Map<String, String> params = getSqlParameters request
-        Sql sql = buildSql pageResourceProvider
-        try {
-            def rows = params.isEmpty() ? sql.rows(query) : sql.rows(query, params)
-            JsonBuilder builder = new JsonBuilder(rows)
-            String table = builder.toPrettyString()
-            return buildResponse(apiResponseBuilder, table)
-        } finally {
-            sql.close()
-        }
+        JsonBuilder builder = new JsonBuilder(results)
+        String table = builder.toPrettyString()
+        return buildResponse(apiResponseBuilder, table)
     }
 
-    protected RestApiResponse buildErrorResponse(RestApiResponseBuilder apiResponseBuilder, String message, Logger logger ) {
-        logger.severe message
+    def VacationRequest getVacationRequest(HumanTaskInstance task, APISession session) {
+        def businessDataAPI = TenantAPIAccessor.getBusinessDataAPI(session)
+        def businessDataReference = businessDataAPI.getProcessBusinessDataReference("vacationRequest", task.getParentProcessInstanceId()) as SimpleBusinessDataReference
 
-        Map<String, String> result = [:]
-        result.put "error", message
-        apiResponseBuilder.withResponseStatus(HttpServletResponse.SC_BAD_REQUEST)
-        buildResponse apiResponseBuilder, result
+        def vacationRequestDAOImpl = new VacationRequestDAOImpl(session)
+        return vacationRequestDAOImpl.findByPersistenceId(businessDataReference.getStorageId())
     }
 
     protected RestApiResponse buildResponse(RestApiResponseBuilder apiResponseBuilder, Serializable result) {
@@ -46,35 +50,6 @@ class Index implements RestApiController {
             withResponse(result)
             build()
         }
-    }
-
-    protected Map<String, String> getSqlParameters(HttpServletRequest request) {
-        Map<String, String> params = [:]
-        for (String parameterName : request.getParameterNames()) {
-            params.put(parameterName, request.getParameter(parameterName))
-        }
-        params.remove("queryId")
-        params
-    }
-
-    protected Sql buildSql(PageResourceProvider pageResourceProvider) {
-        Properties props = loadProperties "datasource.properties", pageResourceProvider
-        Context ctx = new InitialContext(props)
-        DataSource dataSource = (DataSource) ctx.lookup(props["datasource.name"])
-        new Sql(dataSource)
-    }
-
-    protected String getQuery(String queryId, PageResourceProvider pageResourceProvider) {
-        Properties props = loadProperties "queries.properties", pageResourceProvider
-        props[queryId]
-    }
-
-    protected Properties loadProperties(String fileName, PageResourceProvider pageResourceProvider) {
-        Properties props = new Properties()
-        pageResourceProvider.getResourceAsStream(fileName).withStream {
-            InputStream s -> props.load s
-        }
-        props
     }
 
 }
